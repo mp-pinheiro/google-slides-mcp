@@ -34,54 +34,66 @@ export interface ParsedTable {
  */
 export const parseMarkdownToFormattedText = (markdown: string): FormattedTextSegment[] => {
   const segments: FormattedTextSegment[] = [];
-  let currentIndex = 0;
 
-  // Regex patterns for markdown formatting
+  // Process text to handle overlapping patterns correctly
+  const replacements: Array<{ start: number; end: number; text: string; format: 'bold' | 'italic' | 'underline' }> = [];
+
+  // Find patterns in order of precedence (longest first)
   const patterns = [
     { regex: /\*\*([^*]+)\*\*/g, type: 'bold' as const },
-    { regex: /\*([^*]+)\*/g, type: 'italic' as const },
     { regex: /__([^_]+)__/g, type: 'underline' as const },
+    { regex: /\*([^*]+)\*/g, type: 'italic' as const },
   ];
 
-  // Find all formatting matches
-  const matches: Array<{ start: number; end: number; text: string; format: 'bold' | 'italic' | 'underline' }> = [];
-
+  // Find all matches and store them with their positions
   for (const pattern of patterns) {
     let match;
     while ((match = pattern.regex.exec(markdown)) !== null) {
-      matches.push({
-        start: match.index,
-        end: match.index + match[0].length,
-        text: match[1],
-        format: pattern.type,
-      });
+      // Check if this match overlaps with existing matches
+      const start = match.index;
+      const end = match.index + match[0].length;
+      const overlaps = replacements.some(r => 
+        (start >= r.start && start < r.end) || 
+        (end > r.start && end <= r.end) ||
+        (start <= r.start && end >= r.end)
+      );
+
+      if (!overlaps) {
+        replacements.push({
+          start,
+          end,
+          text: match[1],
+          format: pattern.type,
+        });
+      }
     }
   }
 
-  // Sort matches by start position
-  matches.sort((a, b) => a.start - b.start);
+  // Sort replacements by start position
+  replacements.sort((a, b) => a.start - b.start);
 
-  // Process text segments
-  for (const match of matches) {
-    // Add unformatted text before the match
-    if (match.start > currentIndex) {
-      const plainText = markdown.substring(currentIndex, match.start);
+  // Build segments
+  let textIndex = 0;
+  for (const replacement of replacements) {
+    // Add unformatted text before the replacement
+    if (replacement.start > textIndex) {
+      const plainText = markdown.substring(textIndex, replacement.start);
       if (plainText) {
         segments.push({ text: plainText });
       }
     }
 
     // Add formatted text
-    const segment: FormattedTextSegment = { text: match.text };
-    segment[match.format] = true;
+    const segment: FormattedTextSegment = { text: replacement.text };
+    segment[replacement.format] = true;
     segments.push(segment);
 
-    currentIndex = match.end;
+    textIndex = replacement.end;
   }
 
   // Add remaining unformatted text
-  if (currentIndex < markdown.length) {
-    const remainingText = markdown.substring(currentIndex);
+  if (textIndex < markdown.length) {
+    const remainingText = markdown.substring(textIndex);
     if (remainingText) {
       segments.push({ text: remainingText });
     }

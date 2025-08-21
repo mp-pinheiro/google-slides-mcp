@@ -1,6 +1,6 @@
 # Google Slides MCP Server
 
-This project provides a Model Context Protocol (MCP) server for interacting with the Google Slides API. It allows you to create, read, and modify Google Slides presentations programmatically.
+This project provides a Model Context Protocol (MCP) server for interacting with the Google Slides API. It allows you to create, read, and modify Google Slides presentations programmatically with advanced content formatting capabilities.
 
 ## Prerequisites
 
@@ -95,6 +95,67 @@ The server will start and listen for MCP requests on standard input/output (stdi
 
 The server exposes the following tools via the Model Context Protocol:
 
+### Content Creation Tools (Recommended)
+
+These tools provide high-level, semantic operations with markdown support and automatic formatting:
+
+*   **`create_slide_with_content`**: Creates a new slide with title and content, supporting markdown formatting and automatic text fitting.
+    *   **Input:**
+        *   `presentationId` (string, required): The ID of the presentation to add the slide to.
+        *   `title` (string, required): The title of the slide (supports **bold**, *italic*, __underline__ markdown).
+        *   `content` (string, required): The content of the slide (supports markdown formatting).
+        *   `slideIndex` (integer, optional): The position where to insert the slide (0-based index).
+        *   `layout` (string, optional): The slide layout - `TITLE_AND_BODY` (default), `TITLE_ONLY`, or `BLANK`.
+    *   **Output:** JSON object with created slide details, including automatic content splitting if text is too long.
+    *   **Features:**
+        *   Markdown formatting support (**bold**, *italic*, __underline__)
+        *   Automatic text fitting with optimal font sizes
+        *   Content overflow handling (splits into multiple slides)
+        *   Professional slide layouts
+
+*   **`add_text_to_slide`**: Adds formatted text to an existing slide with markdown support and automatic text fitting.
+    *   **Input:**
+        *   `presentationId` (string, required): The ID of the presentation.
+        *   `slideId` (string, required): The ID of the slide to add text to.
+        *   `text` (string, required): The text to add (supports markdown formatting).
+        *   `x` (number, optional): X position of the text box in points.
+        *   `y` (number, optional): Y position of the text box in points.
+        *   `width` (number, optional): Width of the text box in points.
+        *   `height` (number, optional): Height of the text box in points.
+        *   `fontSize` (number, optional): Font size in points (8-72).
+        *   `autoFitText` (boolean, optional): Whether to auto-fit text to the text box (default: true).
+        *   `textType` (string, optional): Text type for styling - `TITLE`, `BODY` (default), or `CAPTION`.
+    *   **Output:** JSON object with text element details and formatting information.
+
+*   **`add_list_to_slide`**: Adds a formatted list to an existing slide, supporting markdown list syntax.
+    *   **Input:**
+        *   `presentationId` (string, required): The ID of the presentation.
+        *   `slideId` (string, required): The ID of the slide to add the list to.
+        *   `listContent` (string, required): The list content in markdown format (`- item` for bullets, `1. item` for numbers).
+        *   `x`, `y`, `width`, `height` (numbers, optional): Position and size in points.
+        *   `bulletStyle` (string, optional): Bullet style - `BULLET_DISC_CIRCLE_SQUARE` (default), `NUMBERED_DECIMAL`, etc.
+    *   **Output:** JSON object with list details and formatting information.
+    *   **Features:**
+        *   Nested list support with different bullet styles per level
+        *   Automatic numbered and bulleted list detection
+        *   Optimal font sizing for readability
+
+*   **`add_table_to_slide`**: Adds a formatted table to an existing slide, supporting markdown table syntax.
+    *   **Input:**
+        *   `presentationId` (string, required): The ID of the presentation.
+        *   `slideId` (string, required): The ID of the slide to add the table to.
+        *   `tableContent` (string, required): The table in markdown format with `|` separators.
+        *   `x`, `y`, `width`, `height` (numbers, optional): Position and size in points.
+        *   `headerStyle` (boolean, optional): Whether to style the first row as headers (default: true).
+    *   **Output:** JSON object with table details and formatting information.
+    *   **Features:**
+        *   GitHub-style markdown table support
+        *   Automatic header row styling with background color
+        *   Professional table borders and formatting
+        *   Flexible positioning and sizing
+
+### Basic Operations
+
 *   **`create_presentation`**: Creates a new Google Slides presentation.
     *   **Input:**
         *   `title` (string, required): The title for the new presentation.
@@ -105,13 +166,6 @@ The server exposes the following tools via the Model Context Protocol:
         *   `presentationId` (string, required): The ID of the presentation to retrieve.
         *   `fields` (string, optional): A field mask (e.g., "slides,pageSize") to limit the returned data.
     *   **Output:** JSON object representing the presentation details.
-
-*   **`batch_update_presentation`**: Applies a series of updates to a presentation. This is the primary method for modifying slides (adding text, shapes, images, creating slides, etc.).
-    *   **Input:**
-        *   `presentationId` (string, required): The ID of the presentation to update.
-        *   `requests` (array, required): An array of request objects defining the updates. Refer to the [Google Slides API `batchUpdate` documentation](https://developers.google.com/slides/api/reference/rest/v1/presentations/batchUpdate#requestbody) for the structure of individual requests.
-        *   `writeControl` (object, optional): Controls write request execution (e.g., using revision IDs).
-    *   **Output:** JSON object representing the result of the batch update.
 
 *   **`get_page`**: Retrieves details about a specific page (slide) within a presentation.
     *   **Input:**
@@ -132,5 +186,35 @@ The server exposes the following tools via the Model Context Protocol:
             *   `slideId`: Object ID of the slide
             *   `content`: All text extracted from the slide
             *   `notes`: Speaker notes (if requested and available)
+
+### Advanced Operations
+
+*   **`batch_update_presentation`**: Applies a series of updates to a presentation. This is a low-level method for direct Google Slides API access when the high-level tools don't meet specific needs.
+    *   **Input:**
+        *   `presentationId` (string, required): The ID of the presentation to update.
+        *   `requests` (array, required): An array of request objects defining the updates. Refer to the [Google Slides API `batchUpdate` documentation](https://developers.google.com/slides/api/reference/rest/v1/presentations/batchUpdate#requestbody) for the structure of individual requests.
+        *   `writeControl` (object, optional): Controls write request execution (e.g., using revision IDs).
+    *   **Output:** JSON object representing the result of the batch update.
+    *   **Note:** For most use cases, prefer the specialized content creation tools above for better reliability and automatic formatting.
+
+## Markdown Support
+
+The content creation tools support the following markdown formatting:
+
+*   **Bold text**: `**bold text**`
+*   *Italic text*: `*italic text*`
+*   __Underlined text__: `__underlined text__`
+*   Bullet lists: `- item 1`, `- item 2`
+*   Numbered lists: `1. item 1`, `2. item 2`
+*   Nested lists: Use indentation (2 spaces per level)
+*   Tables: GitHub-style with `|` separators and `---` header separators
+
+Example markdown table:
+```markdown
+| Name | Age | City |
+|------|-----|------|
+| John | 25  | NYC  |
+| Jane | 30  | LA   |
+```
 
 *(More tools can be added by extending `src/index.ts`)*
