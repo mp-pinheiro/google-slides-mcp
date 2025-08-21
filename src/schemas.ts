@@ -66,7 +66,15 @@ export const AddListToSlideArgsSchema = z.object({
   y: z.number().optional(),
   width: z.number().optional(),
   height: z.number().optional(),
-  bulletStyle: z.enum(['BULLET_DISC_CIRCLE_SQUARE', 'BULLET_CIRCLE_HOLLOW', 'BULLET_DIAMOND_X', 'NUMBERED_DECIMAL', 'NUMBERED_ALPHA_LOWER']).optional(),
+  bulletStyle: z
+    .enum([
+      'BULLET_DISC_CIRCLE_SQUARE',
+      'BULLET_CIRCLE_HOLLOW',
+      'BULLET_DIAMOND_X',
+      'NUMBERED_DECIMAL',
+      'NUMBERED_ALPHA_LOWER',
+    ])
+    .optional(),
 });
 export type AddListToSlideArgs = z.infer<typeof AddListToSlideArgsSchema>;
 

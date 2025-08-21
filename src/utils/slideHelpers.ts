@@ -182,7 +182,7 @@ export const splitTextForSlides = (text: string, maxCharsPerSlide: number = 800)
       // If single paragraph is too long, split it further
       if (paragraph.length > maxCharsPerSlide) {
         const sentences = paragraph.split('. ');
-        for (const sentence of sentences) {
+        for (let sentence of sentences) {
           if (currentSlide.length + sentence.length + 2 <= maxCharsPerSlide) {
             currentSlide += (currentSlide ? '. ' : '') + sentence;
           } else {
@@ -190,7 +190,20 @@ export const splitTextForSlides = (text: string, maxCharsPerSlide: number = 800)
               slides.push(currentSlide + (currentSlide.endsWith('.') ? '' : '.'));
               currentSlide = '';
             }
-            currentSlide = sentence;
+
+            // If even a single sentence is too long, split by chunks
+            if (sentence.length > maxCharsPerSlide) {
+              while (sentence.length > maxCharsPerSlide) {
+                const chunk = sentence.substring(0, maxCharsPerSlide - 3) + '...';
+                slides.push(chunk);
+                sentence = sentence.substring(maxCharsPerSlide - 3);
+              }
+              if (sentence.length > 0) {
+                currentSlide = sentence;
+              }
+            } else {
+              currentSlide = sentence;
+            }
           }
         }
       } else {

@@ -125,7 +125,8 @@ export const setupToolHandlers = (server: Server, slides: slides_v1.Slides) => {
       },
       {
         name: 'create_slide_with_content',
-        description: 'Create a new slide with title and content, supporting markdown formatting and automatic text fitting',
+        description:
+          'Create a new slide with title and content, supporting markdown formatting and automatic text fitting',
         inputSchema: {
           type: 'object',
           properties: {
@@ -243,7 +244,13 @@ export const setupToolHandlers = (server: Server, slides: slides_v1.Slides) => {
             },
             bulletStyle: {
               type: 'string',
-              enum: ['BULLET_DISC_CIRCLE_SQUARE', 'BULLET_CIRCLE_HOLLOW', 'BULLET_DIAMOND_X', 'NUMBERED_DECIMAL', 'NUMBERED_ALPHA_LOWER'],
+              enum: [
+                'BULLET_DISC_CIRCLE_SQUARE',
+                'BULLET_CIRCLE_HOLLOW',
+                'BULLET_DIAMOND_X',
+                'NUMBERED_DECIMAL',
+                'NUMBERED_ALPHA_LOWER',
+              ],
               description: 'Optional. The bullet style to use.',
             },
           },

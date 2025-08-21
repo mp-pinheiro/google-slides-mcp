@@ -38,34 +38,105 @@ export const parseMarkdownToFormattedText = (markdown: string): FormattedTextSeg
   // Process text to handle overlapping patterns correctly
   const replacements: Array<{ start: number; end: number; text: string; format: 'bold' | 'italic' | 'underline' }> = [];
 
-  // Find patterns in order of precedence (longest first)
-  const patterns = [
-    { regex: /\*\*([^*]+)\*\*/g, type: 'bold' as const },
-    { regex: /__([^_]+)__/g, type: 'underline' as const },
-    { regex: /\*([^*]+)\*/g, type: 'italic' as const },
-  ];
+  // Process all patterns and collect matches
+  const allMatches: Array<{
+    start: number;
+    end: number;
+    text: string;
+    format: 'bold' | 'italic' | 'underline';
+    fullMatch: string;
+  }> = [];
 
-  // Find all matches and store them with their positions
-  for (const pattern of patterns) {
-    let match;
-    while ((match = pattern.regex.exec(markdown)) !== null) {
-      // Check if this match overlaps with existing matches
-      const start = match.index;
-      const end = match.index + match[0].length;
-      const overlaps = replacements.some(r => 
-        (start >= r.start && start < r.end) || 
-        (end > r.start && end <= r.end) ||
-        (start <= r.start && end >= r.end)
-      );
+  // Find bold patterns first (**text**)
+  const boldRegex = /\*\*([^*]+)\*\*/g;
+  let match;
+  while ((match = boldRegex.exec(markdown)) !== null) {
+    allMatches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      text: match[1],
+      format: 'bold',
+      fullMatch: match[0],
+    });
+  }
 
-      if (!overlaps) {
-        replacements.push({
-          start,
-          end,
-          text: match[1],
-          format: pattern.type,
-        });
-      }
+  // Find underline patterns (__text__)
+  const underlineRegex = /__([^_]+)__/g;
+  while ((match = underlineRegex.exec(markdown)) !== null) {
+    allMatches.push({
+      start: match.index,
+      end: match.index + match[0].length,
+      text: match[1],
+      format: 'underline',
+      fullMatch: match[0],
+    });
+  }
+
+  // Find italic patterns (*text*) - use non-greedy matching and better logic
+  // Match single asterisks that aren't part of double asterisks
+  let workingText = markdown;
+
+  // First, "mask" the bold patterns to avoid conflicts
+  const boldMasks: Array<{ start: number; end: number; original: string }> = [];
+  for (const boldMatch of allMatches.filter((m) => m.format === 'bold')) {
+    boldMasks.push({
+      start: boldMatch.start,
+      end: boldMatch.end,
+      original: markdown.substring(boldMatch.start, boldMatch.end),
+    });
+  }
+
+  // Replace bold patterns with placeholders of same length
+  boldMasks.reverse().forEach((mask) => {
+    const placeholder = '█'.repeat(mask.end - mask.start);
+    workingText = workingText.substring(0, mask.start) + placeholder + workingText.substring(mask.end);
+  });
+
+  const italicRegex = /\*([^*\n]+?)\*/g;
+  while ((match = italicRegex.exec(workingText)) !== null) {
+    const start = match.index;
+    const end = match.index + match[0].length;
+
+    // Only add if it doesn't overlap with any bold pattern
+    const overlapsWithBold = boldMasks.some(
+      (mask) =>
+        (start >= mask.start && start < mask.end) ||
+        (end > mask.start && end <= mask.end) ||
+        (start < mask.start && end > mask.end)
+    );
+
+    if (!overlapsWithBold) {
+      // Get the original text from the unmasked markdown
+      const originalText = markdown.substring(start + 1, end - 1);
+      allMatches.push({
+        start,
+        end,
+        text: originalText,
+        format: 'italic',
+        fullMatch: match[0],
+      });
+    }
+  }
+
+  // Sort by start position and remove overlaps (keep first match in case of conflict)
+  allMatches.sort((a, b) => a.start - b.start);
+
+  for (const match of allMatches) {
+    // Check if this match overlaps with any already accepted replacement
+    const overlaps = replacements.some(
+      (r) =>
+        (match.start >= r.start && match.start < r.end) ||
+        (match.end > r.start && match.end <= r.end) ||
+        (match.start <= r.start && match.end >= r.end)
+    );
+
+    if (!overlaps) {
+      replacements.push({
+        start: match.start,
+        end: match.end,
+        text: match.text,
+        format: match.format,
+      });
     }
   }
 
