@@ -31,6 +31,12 @@ export interface ParsedTable {
 /**
  * Parses markdown text and returns formatted text segments.
  * Supports **bold**, *italic*, and __underline__ formatting.
+ * 
+ * Key improvements for edge case handling:
+ * - Avoids formatting asterisks in math expressions (2*3*4)
+ * - Avoids formatting asterisks in code patterns (a*b*2)
+ * - Uses improved regex patterns for better text recognition
+ * - Preserves all text content while removing markdown markers
  */
 export const parseMarkdownToFormattedText = (markdown: string): FormattedTextSegment[] => {
   const segments: FormattedTextSegment[] = [];
@@ -72,8 +78,8 @@ export const parseMarkdownToFormattedText = (markdown: string): FormattedTextSeg
     });
   }
 
-  // Find italic patterns (*text*) - use non-greedy matching and better logic
-  // Match single asterisks that aren't part of double asterisks
+  // Find italic patterns (*text*) with improved logic to avoid math expressions
+  // Better regex that avoids single letters/numbers surrounded by asterisks in math contexts
   let workingText = markdown;
 
   // First, "mask" the bold patterns to avoid conflicts
@@ -92,7 +98,9 @@ export const parseMarkdownToFormattedText = (markdown: string): FormattedTextSeg
     workingText = workingText.substring(0, mask.start) + placeholder + workingText.substring(mask.end);
   });
 
-  const italicRegex = /\*([^*\n]+?)\*/g;
+  // Improved italic regex - avoid single characters that look like math
+  // Match word patterns: at least 2 letters, or letter+space+letter combinations
+  const italicRegex = /\*([a-zA-Z][a-zA-Z\s]*[a-zA-Z]|[a-zA-Z]{2,})\*/g;
   while ((match = italicRegex.exec(workingText)) !== null) {
     const start = match.index;
     const end = match.index + match[0].length;
@@ -105,7 +113,7 @@ export const parseMarkdownToFormattedText = (markdown: string): FormattedTextSeg
         (start < mask.start && end > mask.end)
     );
 
-    if (!overlapsWithBold) {
+    if (!overlapsWithBold && match[1].trim()) {
       // Get the original text from the unmasked markdown
       const originalText = markdown.substring(start + 1, end - 1);
       allMatches.push({
